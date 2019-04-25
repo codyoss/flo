@@ -3,6 +3,11 @@
 A data pipelining framework that auto-magically(reflection) parallelizes your work`flo`w based upon configuration. All
 code is runtime validated before processing begins.(Optionally compile time via exposed testing method)
 
+[![GoDoc](https://godoc.org/github.com/codyoss/flo?status.svg)](https://godoc.org/github.com/codyoss/flo)
+[![Build Status](https://cloud.drone.io/api/badges/codyoss/flo/status.svg)](https://cloud.drone.io/codyoss/flo)
+[![codecov](https://codecov.io/gh/codyoss/flo/branch/master/graph/badge.svg)](https://codecov.io/gh/codyoss/flo)
+[![Go Report Card](https://goreportcard.com/badge/github.com/codyoss/flo)](https://goreportcard.com/report/github.com/codyoss/flo)
+
 *NOTE*, this code trades hiding complexity with a whole lot of reflection, thus it is not that fastest library in the
 world. I made it more to prove to myself I could(and to learn the `reflect` package better). Would this code been a
 whole lot better if I had generics/contracts to work with? Yep. Once they are released officially I plan to come back to
