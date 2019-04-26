@@ -13,7 +13,7 @@ func main() {
 	// Create a cancelable context
 	ctx, cancel := context.WithCancel(context.Background())
 
-	// Giving the app a little time to process some data, then gracefully shutdown.
+	// Giving the app a little time to process some data, then gracefully shutdown by canceling the context.
 	go func() {
 		time.Sleep(500 * time.Microsecond)
 		cancel()
@@ -28,6 +28,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	// Output:
+	// Hello World! (A bunch of times)
 }
 
 func helloWorld(ctx context.Context) (string, error) {

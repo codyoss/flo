@@ -64,7 +64,7 @@ func TestFloValidateAssignableInChan(t *testing.T) {
 	}
 }
 
-func TestWithErrorHook(t *testing.T) {
+func TestWithErrorHandler(t *testing.T) {
 	inCh := make(chan string, 1)
 	eh := &errHandle{}
 	if eh.hasHandled {
@@ -73,7 +73,7 @@ func TestWithErrorHook(t *testing.T) {
 
 	inCh <- "test"
 	close(inCh)
-	err := flo.New(flo.WithInput(inCh), flo.WithErrorHook(eh.handleError)).
+	err := flo.New(flo.WithInput(inCh), flo.WithErrorHandler(eh.handleError)).
 		Add(erroringMiddle).
 		Add(end).
 		Start(context.Background())
@@ -86,7 +86,7 @@ func TestWithErrorHook(t *testing.T) {
 	}
 }
 
-func TestWithSetErrorHook(t *testing.T) {
+func TestWithSetErrorHandler(t *testing.T) {
 	inCh := make(chan string, 1)
 	eh := &errHandle{}
 	if eh.hasHandled {
@@ -100,8 +100,8 @@ func TestWithSetErrorHook(t *testing.T) {
 
 	inCh <- "test"
 	close(inCh)
-	err := flo.New(flo.WithInput(inCh), flo.WithErrorHook(eh.handleError)).
-		Add(erroringMiddle, flo.WithStepErrorHook(stepEh.handleError)).
+	err := flo.New(flo.WithInput(inCh), flo.WithErrorHandler(eh.handleError)).
+		Add(erroringMiddle, flo.WithStepErrorHandler(stepEh.handleError)).
 		Add(end).
 		Start(context.Background())
 	if err != nil {
