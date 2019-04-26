@@ -26,7 +26,7 @@ type Flo struct {
 	realChan    chan interface{}
 	steps       []*stepRunner
 	parallelism int
-	errHook     func(error)
+	errHandler  func(error)
 }
 
 // Option that configures a Flo.
@@ -42,11 +42,11 @@ func WithParallelism(i int) Option {
 	}
 }
 
-// WithErrorHook configures the default error handler for when a Step returns an error. This is useful should you want
+// WithErrorHandler configures the default error handler for when a Step returns an error. This is useful should you want
 // to do any logging/auditing.
-func WithErrorHook(hook ErrorHook) Option {
+func WithErrorHandler(handler ErrorHandler) Option {
 	return func(f *Flo) {
-		f.errHook = hook
+		f.errHandler = handler
 	}
 }
 
@@ -77,7 +77,7 @@ func (f *Flo) Add(s Step, options ...StepOption) *Flo {
 		step:        s,
 		parallelism: f.parallelism,
 		wg:          &sync.WaitGroup{},
-		errHook:     f.errHook,
+		errHandler:  f.errHandler,
 	}
 	for i := range options {
 		options[i](sr)

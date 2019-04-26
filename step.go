@@ -26,8 +26,8 @@ const (
 // last example may only be used as the last step of a Flo.
 type Step interface{}
 
-// ErrorHook is a function that takes an error. It allows the user to do something when an error occurs.
-type ErrorHook func(error)
+// ErrorHandler is a function that takes an error. It allows the user to do something when an error occurs.
+type ErrorHandler func(error)
 
 type processFn func(context.Context)
 
@@ -40,7 +40,7 @@ type stepRunner struct {
 	timeout     time.Duration
 	wg          *sync.WaitGroup
 	sType       stepType
-	errHook     func(error)
+	errHandler  func(error)
 }
 
 // StepOption configures how a Step will be run.
@@ -56,11 +56,11 @@ func WithStepParallelism(parallelism int) StepOption {
 	}
 }
 
-// WithStepErrorHook configures a hook for when a Step returns an error. This is useful should you want to do any
+// WithStepErrorHandler configures a handler for when a Step returns an error. This is useful should you want to do any
 // logging/auditing.
-func WithStepErrorHook(hook ErrorHook) StepOption {
+func WithStepErrorHandler(handler ErrorHandler) StepOption {
 	return func(s *stepRunner) {
-		s.errHook = hook
+		s.errHandler = handler
 	}
 }
 
@@ -115,8 +115,8 @@ func (s *stepRunner) processOnlyOut(ctx context.Context) {
 			value := vs[0].Interface()
 			err, ok := vs[1].Interface().(error)
 			if ok && err != nil {
-				if s.errHook != nil {
-					s.errHook(err)
+				if s.errHandler != nil {
+					s.errHandler(err)
 				}
 				continue
 			}
@@ -132,8 +132,8 @@ func (s *stepRunner) processInOut(ctx context.Context) {
 		value := vs[0].Interface()
 		err, ok := vs[1].Interface().(error)
 		if ok && err != nil {
-			if s.errHook != nil {
-				s.errHook(err)
+			if s.errHandler != nil {
+				s.errHandler(err)
 			}
 			continue
 		}
@@ -147,8 +147,8 @@ func (s *stepRunner) processOnlyIn(ctx context.Context) {
 		vs := reflect.ValueOf(s.step).Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(input)})
 		err, ok := vs[0].Interface().(error)
 		if ok && err != nil {
-			if s.errHook != nil {
-				s.errHook(err)
+			if s.errHandler != nil {
+				s.errHandler(err)
 			}
 			continue
 		}
