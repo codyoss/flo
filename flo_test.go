@@ -12,37 +12,37 @@ import (
 func TestFloValidateFailures(t *testing.T) {
 	tests := []struct {
 		name string
-		f    *flo.Flo
+		b    *flo.Builder
 		s1   flo.Step
 		s2   flo.Step
 		s3   flo.Step
 	}{
-		{"not enough steps", flo.New(), badFunc, nil, nil},
-		{"bad step type 1", flo.New(), "", "", nil},
-		{"bad step type 2", flo.New(), 0, 0, nil},
-		{"bad step type 3", flo.New(), false, false, nil},
-		{"bad step type 4", flo.New(), badFunc, badFunc, nil},
-		{"type mismatch", flo.New(), start, square, nil},
-		{"wrong first step", flo.New(), end, start, nil},
-		{"wrong interior step", flo.New(), start, start, end},
-		{"wrong last step", flo.New(), start, middle, start},
-		{"wrong input chan type", flo.New(flo.WithInput("")), middle, end, nil},
-		{"wrong input chan type", flo.New(flo.WithInput(0)), middle, end, nil},
-		{"wrong input chan type", flo.New(flo.WithInput(false)), middle, end, nil},
-		{"input chan type mismatch", flo.New(flo.WithInput(make(chan int, 1))), start, middle, end},
+		{"not enough steps", flo.NewBuilder(), badFunc, nil, nil},
+		{"bad step type 1", flo.NewBuilder(), "", "", nil},
+		{"bad step type 2", flo.NewBuilder(), 0, 0, nil},
+		{"bad step type 3", flo.NewBuilder(), false, false, nil},
+		{"bad step type 4", flo.NewBuilder(), badFunc, badFunc, nil},
+		{"type mismatch", flo.NewBuilder(), start, square, nil},
+		{"wrong first step", flo.NewBuilder(), end, start, nil},
+		{"wrong interior step", flo.NewBuilder(), start, start, end},
+		{"wrong last step", flo.NewBuilder(), start, middle, start},
+		{"wrong input chan type", flo.NewBuilder(flo.WithInput("")), middle, end, nil},
+		{"wrong input chan type", flo.NewBuilder(flo.WithInput(0)), middle, end, nil},
+		{"wrong input chan type", flo.NewBuilder(flo.WithInput(false)), middle, end, nil},
+		{"input chan type mismatch", flo.NewBuilder(flo.WithInput(make(chan int, 1))), start, middle, end},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.s1 != nil {
-				tt.f.Add(tt.s1)
+				tt.b.Add(tt.s1)
 			}
 			if tt.s2 != nil {
-				tt.f.Add(tt.s2)
+				tt.b.Add(tt.s2)
 			}
 			if tt.s3 != nil {
-				tt.f.Add(tt.s3)
+				tt.b.Add(tt.s3)
 			}
-			err := tt.f.Validate()
+			err := tt.b.Validate()
 			if err == nil {
 				t.Errorf("got nil, want error")
 			}
@@ -51,14 +51,14 @@ func TestFloValidateFailures(t *testing.T) {
 }
 
 func TestFloValidateAssignable(t *testing.T) {
-	err := flo.New().Add(stringThingStart).Add(stringThingEnd).Validate()
+	err := flo.NewBuilder().Add(stringThingBuildAndExecute).Add(stringThingEnd).Validate()
 	if err != nil {
 		t.Errorf("got %v, want nil", err)
 	}
 }
 
 func TestFloValidateAssignableInChan(t *testing.T) {
-	err := flo.New(flo.WithInput(make(chan stringThing, 1))).Add(stringThingMiddle).Add(stringThingEnd).Validate()
+	err := flo.NewBuilder(flo.WithInput(make(chan stringThing, 1))).Add(stringThingMiddle).Add(stringThingEnd).Validate()
 	if err != nil {
 		t.Errorf("got %v, want nil", err)
 	}
@@ -73,10 +73,10 @@ func TestWithErrorHandler(t *testing.T) {
 
 	inCh <- "test"
 	close(inCh)
-	err := flo.New(flo.WithInput(inCh), flo.WithErrorHandler(eh.handleError)).
+	err := flo.NewBuilder(flo.WithInput(inCh), flo.WithErrorHandler(eh.handleError)).
 		Add(erroringMiddle).
 		Add(end).
-		Start(context.Background())
+		BuildAndExecute(context.Background())
 	if err != nil {
 		t.Fatalf("got %v, want nil", err)
 	}
@@ -100,10 +100,10 @@ func TestWithSetErrorHandler(t *testing.T) {
 
 	inCh <- "test"
 	close(inCh)
-	err := flo.New(flo.WithInput(inCh), flo.WithErrorHandler(eh.handleError)).
+	err := flo.NewBuilder(flo.WithInput(inCh), flo.WithErrorHandler(eh.handleError)).
 		Add(erroringMiddle, flo.WithStepErrorHandler(stepEh.handleError)).
 		Add(end).
-		Start(context.Background())
+		BuildAndExecute(context.Background())
 	if err != nil {
 		t.Fatalf("got %v, want nil", err)
 	}
@@ -134,22 +134,13 @@ func square(ctx context.Context, i int) (int, error) {
 	return i * i, nil
 }
 
-type counter struct {
-	i int
-}
-
-func (c *counter) count(ctx context.Context, s string) error {
-	c.i++
-	return nil
-}
-
 type stringThing string
 
 func (s stringThing) String() string {
 	return "stringThing"
 }
 
-func stringThingStart(ctx context.Context) (stringThing, error) {
+func stringThingBuildAndExecute(ctx context.Context) (stringThing, error) {
 	return "", nil
 }
 

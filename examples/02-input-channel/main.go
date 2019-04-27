@@ -18,12 +18,12 @@ func main() {
 	// simple here.
 	close(inputChannel)
 
-	flo.New(flo.WithInput(inputChannel)).
+	flo.NewBuilder(flo.WithInput(inputChannel)).
 		Add(exclaim).
 		Add(exclaim).
 		Add(exclaim).
 		Add(print).
-		Start(context.Background())
+		BuildAndExecute(context.Background())
 	// Output:
 	// Hello World!!!
 	// Another message!!!

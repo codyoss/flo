@@ -31,10 +31,10 @@ func main() {
         cancel()
     }()
 
-    err := flo.New(). // Create a flo builder
+    err := flo.NewBuilder(). // Create a flo builder
                 Add(helloWorld). // Add a Step
                 Add(exclaim).    // Add another
-                Start(ctx)       // Start processing(this blocks if there is no error)
+                BuildAndExecute(ctx)       // BuildAndExecute processing(this blocks if there is no error)
 
     // Checking for validation errors
     if err != nil {

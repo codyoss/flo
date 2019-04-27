@@ -71,24 +71,24 @@ func TestValidateInputChannelFailures(t *testing.T) {
 }
 
 func TestWithParallelism(t *testing.T) {
-	f := New()
+	f := NewBuilder()
 	if f.parallelism != 1 {
 		t.Fatalf("got %d, want 1", f.parallelism)
 	}
 
-	f = New(WithParallelism(-5))
+	f = NewBuilder(WithParallelism(-5))
 	if f.parallelism != 1 {
 		t.Fatalf("got %d, want 1", f.parallelism)
 	}
 
-	f = New(WithParallelism(5))
+	f = NewBuilder(WithParallelism(5))
 	if f.parallelism != 5 {
 		t.Fatalf("got %d, want 5", f.parallelism)
 	}
 }
 
 func TestWithStepParallelism(t *testing.T) {
-	f := New()
+	f := NewBuilder()
 	if f.parallelism != 1 {
 		t.Fatalf("got %d, want 1", f.parallelism)
 	}
@@ -98,7 +98,7 @@ func TestWithStepParallelism(t *testing.T) {
 		t.Fatalf("got %d, want 1", f.steps[0].parallelism)
 	}
 
-	f = New(WithParallelism(5))
+	f = NewBuilder(WithParallelism(5))
 	if f.parallelism != 5 {
 		t.Fatalf("got %d, want 5", f.parallelism)
 	}

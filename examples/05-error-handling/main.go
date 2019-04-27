@@ -17,10 +17,10 @@ func main() {
 	es := errorStep(0)
 
 	// Register a global error handler for all steps. This may be overridden at a step level.
-	flo.New(flo.WithInput(inputChannel), flo.WithErrorHandler(globalErrorHandler)).
+	flo.NewBuilder(flo.WithInput(inputChannel), flo.WithErrorHandler(globalErrorHandler)).
 		Add(es.start).
 		Add(es.end, flo.WithStepErrorHandler(stepErrorHandler)). // Override the global error handler.
-		Start(context.Background())
+		BuildAndExecute(context.Background())
 	// Output:
 	// Handler error at a Global level: Oh no, I failed on the first step
 	// Handler error at a Step level: Oh no, I failed on the last step
