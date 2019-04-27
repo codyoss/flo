@@ -4,7 +4,6 @@ import (
 	"context"
 	"reflect"
 	"sync"
-	"time"
 )
 
 type stepType int
@@ -37,7 +36,6 @@ type stepRunner struct {
 	inCh        chan interface{}
 	outCh       chan interface{}
 	step        Step
-	timeout     time.Duration
 	wg          *sync.WaitGroup
 	sType       stepType
 	errHandler  func(error)

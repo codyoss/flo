@@ -20,8 +20,8 @@ var (
 	typeMismatchFmt        = "Step %d: previous steps output type %s does not match current steps input type %s"
 )
 
-// Flo is a workflow pipeline.
-type Flo struct {
+// Builder is used to construct a flo(workflow).
+type Builder struct {
 	inCh        interface{}
 	realChan    chan interface{}
 	steps       []*stepRunner
@@ -29,38 +29,38 @@ type Flo struct {
 	errHandler  func(error)
 }
 
-// Option that configures a Flo.
-type Option func(*Flo)
+// Option that configures a Builder.
+type Option func(*Builder)
 
 // WithParallelism configures the default number of workers launched for each step.
 func WithParallelism(i int) Option {
-	return func(f *Flo) {
+	return func(b *Builder) {
 		if i < 1 {
 			i = 1
 		}
-		f.parallelism = i
+		b.parallelism = i
 	}
 }
 
 // WithErrorHandler configures the default error handler for when a Step returns an error. This is useful should you want
 // to do any logging/auditing.
 func WithErrorHandler(handler ErrorHandler) Option {
-	return func(f *Flo) {
-		f.errHandler = handler
+	return func(b *Builder) {
+		b.errHandler = handler
 	}
 }
 
 // WithInput configures the input channel that feeds the pipline.
 func WithInput(ch interface{}) Option {
-	return func(f *Flo) {
-		f.inCh = ch
+	return func(b *Builder) {
+		b.inCh = ch
 	}
 }
 
-// New creates a Flo. This is a pipeline builder. The pipeline will not begin to process any data until Start is
-// called.
-func New(options ...Option) *Flo {
-	f := &Flo{
+// NewBuilder creates a Builder, used to construct a flo. The flo will not begin to process any data until
+// BuildAndExecute is called.
+func NewBuilder(options ...Option) *Builder {
+	f := &Builder{
 		parallelism: 1,
 	}
 
@@ -71,51 +71,51 @@ func New(options ...Option) *Flo {
 	return f
 }
 
-// Add registers a Step in a Flo and returns the same Flo back as to act as a builder.
-func (f *Flo) Add(s Step, options ...StepOption) *Flo {
+// Add registers a Step with the flo Builder.
+func (b *Builder) Add(s Step, options ...StepOption) *Builder {
 	sr := &stepRunner{
 		step:        s,
-		parallelism: f.parallelism,
+		parallelism: b.parallelism,
 		wg:          &sync.WaitGroup{},
-		errHandler:  f.errHandler,
+		errHandler:  b.errHandler,
 	}
 	for i := range options {
 		options[i](sr)
 	}
-	f.steps = append(f.steps, sr)
-	return f
+	b.steps = append(b.steps, sr)
+	return b
 }
 
-// Start the Flo. This will validate all steps registered to the pipeline. If validation fails an error is returned
-// and no data will be processed. If validation is successful the steps will begin to process data and this method will
-// block until the provdied context is canceled or the input channel closed, if one was registered.
-func (f *Flo) Start(ctx context.Context) error {
-	err := f.Validate()
+// BuildAndExecute the flo. This will validate all steps registered to the pipeline. If validation fails an error is
+// returned and no data will be processed. If validation is successful the steps will begin to process data and this
+// method will block until the provdied context is canceled or the input channel closed, if one was registered.
+func (b *Builder) BuildAndExecute(ctx context.Context) error {
+	err := b.Validate()
 	if err != nil {
 		return err
 	}
 
 	// wire up the steps and start worker pools
-	for i := range f.steps {
+	for i := range b.steps {
 		if i == 0 {
-			if f.inCh != nil {
-				f.steps[i].registerInput(f.launchInputChannel())
+			if b.inCh != nil {
+				b.steps[i].registerInput(b.launchInputChannel())
 			}
 		} else {
-			f.steps[i].registerInput(f.steps[i-1].output())
+			b.steps[i].registerInput(b.steps[i-1].output())
 		}
-		f.steps[i].start(ctx)
+		b.steps[i].start(ctx)
 	}
 
-	f.awaitShutdown()
+	b.awaitShutdown()
 	return nil
 }
 
 // Validate makes sure the pipeline can process data. It ensures all registered steps are of the right type and that
-// their input and output types line up. This is the methodd that Start calls. It is exposed mainly for testing purposes
-// so that end users of this api can find out at compile time if their pipeline is set up correctly.
-func (f *Flo) Validate() error {
-	stepCnt := len(f.steps)
+// their input and output types line up. This is the methodd that BuildAndExecute calls. It is exposed mainly for
+// testing purposes so that end users of this api can find out at compile time if their pipeline is set up correctly.
+func (b *Builder) Validate() error {
+	stepCnt := len(b.steps)
 	if stepCnt < 2 {
 		return errStepCnt
 	}
@@ -127,8 +127,8 @@ func (f *Flo) Validate() error {
 		prevOutput reflect.Type
 		st         stepType
 	)
-	for i := range f.steps {
-		st = typeOfStep(f.steps[i].step)
+	for i := range b.steps {
+		st = typeOfStep(b.steps[i].step)
 		// some initial validation
 		if st == invalid {
 			return errStepType
@@ -141,17 +141,17 @@ func (f *Flo) Validate() error {
 		}
 
 		// set the stepRunner's type
-		f.steps[i].sType = st
+		b.steps[i].sType = st
 
 		// set variables for input/output types
 		switch st {
 		case onlyOut:
-			output = reflect.TypeOf(f.steps[i].step).Out(0)
+			output = reflect.TypeOf(b.steps[i].step).Out(0)
 		case inOut:
-			input = reflect.TypeOf(f.steps[i].step).In(1)
-			output = reflect.TypeOf(f.steps[i].step).Out(0)
+			input = reflect.TypeOf(b.steps[i].step).In(1)
+			output = reflect.TypeOf(b.steps[i].step).Out(0)
 		case onlyIn:
-			input = reflect.TypeOf(f.steps[i].step).In(1)
+			input = reflect.TypeOf(b.steps[i].step).In(1)
 		}
 
 		if i == 0 {
@@ -171,8 +171,8 @@ func (f *Flo) Validate() error {
 	}
 
 	// validate input channel
-	if f.inCh != nil {
-		err := validateInputChannel(f.inCh, f.steps[0])
+	if b.inCh != nil {
+		err := validateInputChannel(b.inCh, b.steps[0])
 		if err != nil {
 			return err
 		}
@@ -181,10 +181,10 @@ func (f *Flo) Validate() error {
 	return nil
 }
 
-func (f *Flo) launchInputChannel() chan interface{} {
-	v := reflect.ValueOf(f.inCh)
+func (b *Builder) launchInputChannel() chan interface{} {
+	v := reflect.ValueOf(b.inCh)
 	realChan := make(chan interface{}, v.Cap())
-	f.realChan = realChan
+	b.realChan = realChan
 	go func() {
 		for {
 			x, ok := v.Recv()
@@ -265,8 +265,8 @@ func typeOfStep(s Step) stepType {
 	return inOut
 }
 
-func (f *Flo) awaitShutdown() {
-	for i := range f.steps {
-		f.steps[i].awaitShutdown()
+func (b *Builder) awaitShutdown() {
+	for i := range b.steps {
+		b.steps[i].awaitShutdown()
 	}
 }

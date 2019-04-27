@@ -11,18 +11,18 @@ func main() {
 	// It is a good idea to construct your flo in a method. This way you can, at test time, validate that your flo will
 	// construct properly.
 	fb := FloBuilder()
-	fb.Start(context.Background())
+	fb.BuildAndExecute(context.Background())
 	// Output:
 	// Hello World!!
 }
 
 // FloBuilder constucts the workflow.
-func FloBuilder() *flo.Flo {
+func FloBuilder() *flo.Builder {
 	inputChannel := make(chan string, 1)
 	inputChannel <- "Hello World"
 	close(inputChannel)
 
-	return flo.New(flo.WithInput(inputChannel)).
+	return flo.NewBuilder(flo.WithInput(inputChannel)).
 		Add(exclaim).
 		Add(print)
 }
