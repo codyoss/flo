@@ -49,12 +49,8 @@ For more examples see the [examples folder](examples/)
 
 ## TODO
 
-- [x] Examples
+- [ ] Add output channel if ending in func(ctx, T) R err
 - [ ] More docs
 - [ ] Better Readme
-- [ ] Close if not 100% coverage (With how much reflection this has.... best to be safe)
-- [ ] Timeout for step?
-- [ ] Maybe handle `ctrl C` with `flo.Option`
-- [ ] Add output channel if ending in func(ctx, T) R err
 - [ ] Benchmarks
 - [ ] A blog post on this repo
