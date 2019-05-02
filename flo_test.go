@@ -206,9 +206,12 @@ func erroringMiddle(ctx context.Context, s string) (string, error) {
 type completeFlo struct {
 	i    int
 	once sync.Once
+	sync.Mutex
 }
 
 func (c *completeFlo) start(ctx context.Context) (int, error) {
+	c.Lock()
+	defer c.Unlock()
 	return c.i, nil
 }
 
@@ -217,6 +220,8 @@ func (c *completeFlo) middle(ctx context.Context, i int) (int, error) {
 }
 
 func (c *completeFlo) end(ctx context.Context, i int) error {
+	c.Lock()
+	defer c.Unlock()
 	c.once.Do(func() {
 		c.i = i
 	})

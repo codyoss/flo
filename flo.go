@@ -104,6 +104,10 @@ func (b *Builder) BuildAndExecute(ctx context.Context) error {
 		} else {
 			b.steps[i].registerInput(b.steps[i-1].output())
 		}
+		// allocate output channel, if needed, to avoid data race
+		if b.steps[i].sType != onlyIn {
+			b.steps[i].output()
+		}
 		b.steps[i].start(ctx)
 	}
 
