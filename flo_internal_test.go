@@ -71,6 +71,34 @@ func TestValidateInputChannelFailures(t *testing.T) {
 	}
 }
 
+func TestValidateOutputChannelFailures(t *testing.T) {
+	invalidstepRunner := &stepRunner{sType: invalid, step: 7}
+	inOutstepRunner := &stepRunner{sType: inOut, step: inOutFn}
+	tests := []struct {
+		name string
+		inCh interface{}
+		sr   *stepRunner
+		want error
+	}{
+		{"invalid step type", make(chan string, 1), invalidstepRunner, errOutputChStepType},
+		{"invalid inCh type 1", 7, inOutstepRunner, errOutputChType},
+		{"invalid inCh type 2", "", inOutstepRunner, errOutputChType},
+		{"invalid inCh type 3", 7.7, inOutstepRunner, errOutputChType},
+		{"invalid inCh type 4", struct{}{}, inOutstepRunner, errOutputChType},
+		{"invalid inCh type 5", &struct{}{}, inOutstepRunner, errOutputChType},
+		{"invalid inCh type 6", false, inOutstepRunner, errOutputChType},
+		{"invalid chan dir", createReceiveChan(), inOutstepRunner, errOutputChType},
+		{"type mismatch", make(chan int, 1), inOutstepRunner, fmt.Errorf(outputChTypeMismatchFmt, "int", "string")},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := validateOutputChannel(tt.inCh, tt.sr); got.Error() != tt.want.Error() {
+				t.Errorf("got %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestWithParallelism(t *testing.T) {
 	f := NewBuilder()
 	if f.parallelism != 1 {
@@ -121,6 +149,10 @@ func TestWithStepParallelism(t *testing.T) {
 }
 
 func createSendChan() chan<- bool {
+	return make(chan bool)
+}
+
+func createReceiveChan() <-chan bool {
 	return make(chan bool)
 }
 

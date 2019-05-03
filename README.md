@@ -49,7 +49,6 @@ For more examples see the [examples folder](examples/)
 
 ## TODO
 
-- [ ] Add output channel if ending in func(ctx, T) R err
 - [ ] More docs
 - [ ] Better Readme
 - [ ] Benchmarks
