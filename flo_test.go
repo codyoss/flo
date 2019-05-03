@@ -33,7 +33,11 @@ func TestFloValidateFailures(t *testing.T) {
 		{"wrong input chan type", flo.NewBuilder(flo.WithInput("")), middle, end, nil},
 		{"wrong input chan type", flo.NewBuilder(flo.WithInput(0)), middle, end, nil},
 		{"wrong input chan type", flo.NewBuilder(flo.WithInput(false)), middle, end, nil},
-		{"input chan type mismatch", flo.NewBuilder(flo.WithInput(make(chan int, 1))), stringThingMiddle, stringThingEnd, nil},
+		{"input chan type mismatch", flo.NewBuilder(flo.WithInput(make(chan int, 1)), flo.WithOutput(0)), middleStringerToStringer, endStringThing, nil},
+		{"wrong output chan type", flo.NewBuilder(flo.WithInput(make(chan string, 1)), flo.WithOutput(false)), middle, middle, nil},
+		{"wrong output chan type", flo.NewBuilder(flo.WithInput(make(chan string, 1)), flo.WithOutput("")), middle, middle, nil},
+		{"wrong output chan type", flo.NewBuilder(flo.WithInput(make(chan string, 1)), flo.WithOutput("")), middle, middle, nil},
+		{"output chan type mismatch", flo.NewBuilder(flo.WithInput(make(chan string, 1)), flo.WithOutput(make(chan io.Closer, 1))), middle, middle, nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -62,14 +66,25 @@ func TestFloBuildAndExecuteReturnsErr(t *testing.T) {
 }
 
 func TestFloValidateAssignable(t *testing.T) {
-	err := flo.NewBuilder().Add(stringThingBuildAndExecute).Add(stringThingEnd).Validate()
+	err := flo.NewBuilder().Add(startStringThing).Add(endStringThing).Validate()
 	if err != nil {
 		t.Errorf("got %v, want nil", err)
 	}
 }
 
 func TestFloValidateAssignableInChan(t *testing.T) {
-	err := flo.NewBuilder(flo.WithInput(make(chan stringThing, 1))).Add(stringThingMiddle).Add(stringThingEnd).Validate()
+	err := flo.NewBuilder(flo.WithInput(make(chan stringThing, 1))).
+		Add(middleStringerToStringer).Add(endStringThing).
+		Validate()
+	if err != nil {
+		t.Errorf("got %v, want nil", err)
+	}
+}
+
+func TestFloValidateAssignableOutputChan(t *testing.T) {
+	err := flo.NewBuilder(flo.WithInput(make(chan stringThing, 1)), flo.WithOutput(make(chan fmt.Stringer, 1))).
+		Add(middleStringThingToStringThing).Add(middleStringThingToStringThing).
+		Validate()
 	if err != nil {
 		t.Errorf("got %v, want nil", err)
 	}
@@ -149,6 +164,26 @@ func TestFloBuildAndExecute(t *testing.T) {
 	}
 }
 
+func TestFloBuildAndExecuteWithInOutChannels(t *testing.T) {
+	inputChannel := make(chan string, 1)
+	inputChannel <- "Hello World"
+	close(inputChannel)
+	outputChannel := make(chan string, 1)
+
+	err := flo.NewBuilder(flo.WithInput(inputChannel), flo.WithOutput(outputChannel)).
+		Add(middle).
+		Add(middle).
+		BuildAndExecute(context.Background())
+	if err != nil {
+		t.Fatalf("got %v, want nil", err)
+	}
+
+	if got := <-outputChannel; got != "HELLO WORLD" {
+		t.Fatalf("got %s, want HELLO WORLD", got)
+	}
+	close(outputChannel)
+}
+
 // helpers
 
 func badFunc() {}
@@ -179,15 +214,18 @@ func (s stringThing) String() string {
 	return "stringThing"
 }
 
-func stringThingBuildAndExecute(ctx context.Context) (stringThing, error) {
+func startStringThing(ctx context.Context) (stringThing, error) {
 	return "", nil
 }
 
-func stringThingMiddle(ctx context.Context, s fmt.Stringer) (fmt.Stringer, error) {
+func middleStringerToStringer(ctx context.Context, s fmt.Stringer) (fmt.Stringer, error) {
+	return s, nil
+}
+func middleStringThingToStringThing(ctx context.Context, s stringThing) (stringThing, error) {
 	return s, nil
 }
 
-func stringThingEnd(ctx context.Context, s fmt.Stringer) error {
+func endStringThing(ctx context.Context, s fmt.Stringer) error {
 	return nil
 }
 

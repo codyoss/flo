@@ -9,20 +9,24 @@ import (
 )
 
 var (
-	errStepCnt             = errors.New("must register at least two steps")
-	errFirstStep           = errors.New("first step must have a signature of func(context.Context) (R, error) or func(context.Context, T) (R, error)")
-	errInteriorStep        = errors.New("interior step must have a signature of func(context.Context, T) (R, error)")
-	errLastStep            = errors.New("last step must have a signature of func(context.Context, T) error")
-	errStepType            = errors.New("a Step must be func with one of the following signatures: func(context.Context) (R, error), func(context.Context, T) (R, error), or func(context.Context, T) error")
-	errInputChType         = errors.New("a input channel must be of type <-chan T")
-	errInputChStepType     = errors.New("a input channel should only be registered when first step has a signature of func(context.Context, T) (R, error)")
-	inputChTypeMismatchFmt = "input channels type %s does not match the first steps input type %s"
-	typeMismatchFmt        = "Step %d: previous steps output type %s does not match current steps input type %s"
+	errStepCnt              = errors.New("must register at least two steps")
+	errFirstStep            = errors.New("first step must have a signature of func(context.Context) (R, error) or func(context.Context, T) (R, error)")
+	errInteriorStep         = errors.New("interior step must have a signature of func(context.Context, T) (R, error)")
+	errLastStep             = errors.New("last step must have a signature of func(context.Context, T) error")
+	errStepType             = errors.New("a Step must be func with one of the following signatures: func(context.Context) (R, error), func(context.Context, T) (R, error), or func(context.Context, T) error")
+	errInputChType          = errors.New("a input channel must be of type <-chan T")
+	errInputChStepType      = errors.New("a input channel should only be registered when first step is of type func(context.Context, T) (R, error)")
+	errOutputChType         = errors.New("an output channel must be of type chan<- T")
+	errOutputChStepType     = errors.New("an output channel should only be registered when last step is of type func(context.Context, T) (R, error)")
+	inputChTypeMismatchFmt  = "input channels type %s does not match the first steps input type %s"
+	outputChTypeMismatchFmt = "output channels type %s does not match the last steps output type %s"
+	typeMismatchFmt         = "Step %d: previous steps output type %s does not match current steps input type %s"
 )
 
 // Builder is used to construct a flo(workflow).
 type Builder struct {
 	inCh        interface{}
+	outCh       interface{}
 	realChan    chan interface{}
 	steps       []*stepRunner
 	parallelism int
@@ -50,10 +54,21 @@ func WithErrorHandler(handler ErrorHandler) Option {
 	}
 }
 
-// WithInput configures the input channel that feeds the pipline.
+// WithInput configures the input channel that feeds the flo. This option is only valid if the first step registered in
+// the flo is of type func(context.Context, T) (R, errorr). In this case the ch should be of type chan T.
 func WithInput(ch interface{}) Option {
 	return func(b *Builder) {
 		b.inCh = ch
+	}
+}
+
+// WithOutput configures the output channel  of the flo. This is useful should you want to bridge the final output of the
+// flo with some of your other code. This option is only valid if the last step registered in the flo is of type
+// func(context.Context, T) (R, error). In this case the ch should be of type chan R. This channel should not be closed
+// until after the flo ends processing data. It will not be managed by the flo.
+func WithOutput(ch interface{}) Option {
+	return func(b *Builder) {
+		b.outCh = ch
 	}
 }
 
@@ -109,6 +124,10 @@ func (b *Builder) BuildAndExecute(ctx context.Context) error {
 			b.steps[i].output()
 		}
 		b.steps[i].start(ctx)
+	}
+
+	if b.outCh != nil {
+		b.launchOutputChannel()
 	}
 
 	b.awaitShutdown()
@@ -182,6 +201,14 @@ func (b *Builder) Validate() error {
 		}
 	}
 
+	// validate input channel
+	if b.outCh != nil {
+		err := validateOutputChannel(b.outCh, b.steps[len(b.steps)-1])
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -203,12 +230,22 @@ func (b *Builder) launchInputChannel() chan interface{} {
 	return realChan
 }
 
+func (b *Builder) launchOutputChannel() {
+	v := reflect.ValueOf(b.outCh)
+	lastStepOutput := b.steps[len(b.steps)-1].output()
+	go func() {
+		for output := range lastStepOutput {
+			v.Send(reflect.ValueOf(output))
+		}
+	}()
+}
+
 func validateInputChannel(inCh interface{}, sr *stepRunner) error {
 	if sr.sType != inOut {
 		return errInputChStepType
 	}
 
-	// make sure channel input is a channel that is readable
+	// make sure it is a channel and it is readable
 	t := reflect.TypeOf(inCh)
 	if t.Kind() != reflect.Chan ||
 		(t.Kind() == reflect.Chan && t.ChanDir() == reflect.SendDir) {
@@ -224,6 +261,32 @@ func validateInputChannel(inCh interface{}, sr *stepRunner) error {
 		}
 	} else if t != input {
 		return fmt.Errorf(inputChTypeMismatchFmt, t, input)
+	}
+
+	return nil
+}
+
+func validateOutputChannel(outCh interface{}, sr *stepRunner) error {
+	if sr.sType != inOut {
+		return errOutputChStepType
+	}
+
+	// make sure it is a channel and it is writeable
+	t := reflect.TypeOf(outCh)
+	if t.Kind() != reflect.Chan ||
+		(t.Kind() == reflect.Chan && t.ChanDir() == reflect.RecvDir) {
+		return errOutputChType
+	}
+
+	// make sure types align
+	output := reflect.TypeOf(sr.step).Out(0)
+	t = t.Elem()
+	if t.Kind() == reflect.Interface {
+		if !output.Implements(t) {
+			return fmt.Errorf(outputChTypeMismatchFmt, t, output)
+		}
+	} else if t != output {
+		return fmt.Errorf(outputChTypeMismatchFmt, t, output)
 	}
 
 	return nil

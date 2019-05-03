@@ -18,6 +18,7 @@ func main() {
 	// simple here.
 	close(inputChannel)
 
+	// Register the input channel
 	flo.NewBuilder(flo.WithInput(inputChannel)).
 		Add(exclaim).
 		Add(exclaim).
