@@ -190,9 +190,9 @@ func BenchmarkFlo(b *testing.B) {
 	inCh := make(chan int, 5)
 	outCh := make(chan int, 5)
 	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
-		wg.Add(1)
-		flo.NewBuilder(flo.WithInput(inCh), flo.WithOutput(outCh), flo.WithParallelism(5)).
+		_ = flo.NewBuilder(flo.WithInput(inCh), flo.WithOutput(outCh), flo.WithParallelism(5)).
 			Add(addInts).
 			Add(addInts).
 			Add(addInts).
