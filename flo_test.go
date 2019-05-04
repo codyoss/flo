@@ -184,6 +184,103 @@ func TestFloBuildAndExecuteWithInOutChannels(t *testing.T) {
 	close(outputChannel)
 }
 
+// Benchmark flo vs non-flo
+
+func BenchmarkFlo(b *testing.B) {
+	inCh := make(chan int, 5)
+	outCh := make(chan int, 5)
+	var wg sync.WaitGroup
+	go func() {
+		wg.Add(1)
+		flo.NewBuilder(flo.WithInput(inCh), flo.WithOutput(outCh), flo.WithParallelism(5)).
+			Add(addInts).
+			Add(addInts).
+			Add(addInts).
+			Add(addInts).
+			Add(addInts).
+			BuildAndExecute(context.Background())
+		wg.Done()
+	}()
+	for n := 0; n < b.N; n++ {
+		inCh <- 1
+		<-outCh
+	}
+	close(inCh)
+	wg.Wait()
+	close(outCh)
+}
+
+func BenchmarkNonFlo(b *testing.B) {
+	inCh := make(chan int, 5)
+	inCh2 := make(chan int, 5)
+	inCh3 := make(chan int, 5)
+	inCh4 := make(chan int, 5)
+	inCh5 := make(chan int, 5)
+	outCh := make(chan int, 5)
+	var wg sync.WaitGroup
+	var wg2 sync.WaitGroup
+	var wg3 sync.WaitGroup
+	var wg4 sync.WaitGroup
+	var wg5 sync.WaitGroup
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		wg2.Add(1)
+		wg3.Add(1)
+		wg4.Add(1)
+		wg5.Add(1)
+		go func() {
+			for v := range inCh {
+				val, _ := addInts(context.Background(), v)
+				inCh2 <- val
+			}
+			wg.Done()
+		}()
+		go func() {
+			for v := range inCh2 {
+				val, _ := addInts(context.Background(), v)
+				inCh3 <- val
+			}
+			wg2.Done()
+		}()
+		go func() {
+			for v := range inCh3 {
+				val, _ := addInts(context.Background(), v)
+				inCh4 <- val
+			}
+			wg3.Done()
+		}()
+		go func() {
+			for v := range inCh4 {
+				val, _ := addInts(context.Background(), v)
+				inCh5 <- val
+			}
+			wg4.Done()
+		}()
+		go func() {
+			for v := range inCh5 {
+				val, _ := addInts(context.Background(), v)
+				outCh <- val
+			}
+			wg5.Done()
+		}()
+	}
+	for n := 0; n < b.N; n++ {
+		inCh <- 1
+		<-outCh
+	}
+	close(inCh)
+	wg.Wait()
+	close(inCh2)
+	wg2.Wait()
+	close(inCh3)
+	wg3.Wait()
+	close(inCh4)
+	wg4.Wait()
+	close(inCh5)
+	wg5.Wait()
+	close(outCh)
+}
+
 // helpers
 
 func badFunc() {}
@@ -202,6 +299,10 @@ func end(ctx context.Context, s string) error {
 
 func square(ctx context.Context, i int) (int, error) {
 	return i * i, nil
+}
+
+func addInts(ctx context.Context, i int) (int, error) {
+	return i + i, nil
 }
 
 func read(ctx context.Context, r io.Reader) error {
