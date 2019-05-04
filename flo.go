@@ -1,3 +1,48 @@
+// Package flo is designed to be an abstraction to the common worker pool pattern used in Go. How does it work? By being
+// decently opinionated and making heavy use of reflection.
+//
+// The first thing you need to know about designing a flo is what kind of functions/methods it can work with. Flo's can
+// consist of one of three function signatures:
+//
+//  1. func (context.Context) (R, error)
+//  2. func (context.Context, T) (R, error)
+//  3. func (context.Context, T) error
+//
+// One can only be used as the first step of a flo. It is meant to act as a step the produces data without an input from
+// anywhere. Two can be used at any position in the flo, although if it is used as the first or last step in the flo
+// some extra configuration is expected. Three can only be used as the last step of a flo. It is mean to act as a step
+// that consumes data and does not send it along to anywhere else.
+//
+// Now lets break down the common parts of the step signatures. They all take in a context as their first parameter.
+// This the same context that is passed into the flo when BuildAndExecute is called. It is propagated throughout to
+// support proper context cancellation. The second things all of the signatures have in common is they all return at
+// least an error.
+//
+// Important: If an error is returned from a step in the flo no result will not be propagated to the next step, ending
+// any data processing for that data stream.
+//
+// Lastly, you see that steps can optionally take in a T and optionally return an R. Theses are meant to be generic
+// placeholders for concrete types.
+//
+// Imagine we have have the following steps:
+//  func step1(ctx context.Context) (int, error) {...}
+//  func step2(ctx context.Context, i int) (string, error) {...}
+//  func step3(ctx context.Context, s string) error {...}
+//
+// We could construct and run a flo with these steps by doing:
+//  err := flo.NewBuilder().
+//             Add(step1).
+//             Add(step2).
+//             Add(step3).
+//             BuildAndExecute(context.Background())
+//
+// This would be an example of a valid flo. Notice how the output type of the previous step must match the input of the
+// proceeding step(the T and R values mentioned above). If the types did not align properly the err that is returned
+// would not be nil. The flo validates all types before it begins to process any data. A Validate method is also exposed
+// from the flo.Builder should you want to validate your flo at test time.
+//
+// For more detailed examples including how to configure a flo's parallelism and how to bridge a flo to other parts of
+// your codebase I recommend checkout out the examples folder in this repo.
 package flo
 
 import (

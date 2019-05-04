@@ -18,7 +18,7 @@ const (
 // Step should be a function. The func can look like any of the following examples:
 //  func(context.Context) (R, error)
 //  func(context.Context, T) (R, error)
-//  func(context.Context, T) (error)
+//  func(context.Context, T) error
 //
 // Basically, a Step must at least take a context as its first input parameter and return at least an error. The middle
 // example may be used at any point in the Flo. The first example may only be used as the first step of a Flo, and the
