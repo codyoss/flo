@@ -129,6 +129,6 @@ PASS
 ok      github.com/codyoss/flo  2.462s
 ```
 
-## TODO
+## Blog post
 
-- [ ] A blog post on this repo
+I wrote a blog post about this repo. [Check it out here!](https://medium.com/@the.cody.oss/reflecting-on-worker-pools-in-go-7f91f05a5f01)
